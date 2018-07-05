@@ -11,6 +11,8 @@ import com.zhy.http.okhttp.request.RequestCall;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
@@ -19,32 +21,25 @@ import okhttp3.Response;
 /**
  * Created by zhy on 15/8/17.
  */
-public class OkHttpUtils
-{
+public class OkHttpUtils {
     public static final long DEFAULT_MILLISECONDS = 10_000L;
     private volatile static OkHttpUtils mInstance;
     private OkHttpClient mOkHttpClient;
+    ExecutorService mExecutorPool = Executors.newFixedThreadPool(15);//默认最多启动15个线程
 
-    public OkHttpUtils(OkHttpClient okHttpClient)
-    {
-        if (okHttpClient == null)
-        {
+    public OkHttpUtils(OkHttpClient okHttpClient) {
+        if (okHttpClient == null) {
             mOkHttpClient = new OkHttpClient();
-        } else
-        {
+        } else {
             mOkHttpClient = okHttpClient;
         }
     }
 
 
-    public static OkHttpUtils initClient(OkHttpClient okHttpClient)
-    {
-        if (mInstance == null)
-        {
-            synchronized (OkHttpUtils.class)
-            {
-                if (mInstance == null)
-                {
+    public static OkHttpUtils initClient(OkHttpClient okHttpClient) {
+        if (mInstance == null) {
+            synchronized (OkHttpUtils.class) {
+                if (mInstance == null) {
                     mInstance = new OkHttpUtils(okHttpClient);
                 }
             }
@@ -52,101 +47,81 @@ public class OkHttpUtils
         return mInstance;
     }
 
-    public static OkHttpUtils getInstance()
-    {
+    public static OkHttpUtils getInstance() {
         return initClient(null);
     }
 
 
-    public Executor getDelivery()
-    {
-        return mPlatform.defaultCallbackExecutor();
+    public Executor getDelivery() {
+        return mExecutorPool;
     }
 
-    public OkHttpClient getOkHttpClient()
-    {
+    public OkHttpClient getOkHttpClient() {
         return mOkHttpClient;
     }
 
-    public static GetBuilder get()
-    {
+    public static GetBuilder get() {
         return new GetBuilder();
     }
 
-    public static PostStringBuilder postString()
-    {
+    public static PostStringBuilder postString() {
         return new PostStringBuilder();
     }
 
-    public static PostFileBuilder postFile()
-    {
+    public static PostFileBuilder postFile() {
         return new PostFileBuilder();
     }
 
-    public static PostFormBuilder post()
-    {
+    public static PostFormBuilder post() {
         return new PostFormBuilder();
     }
 
-    public static OtherRequestBuilder put()
-    {
+    public static OtherRequestBuilder put() {
         return new OtherRequestBuilder(METHOD.PUT);
     }
 
-    public static HeadBuilder head()
-    {
+    public static HeadBuilder head() {
         return new HeadBuilder();
     }
 
-    public static OtherRequestBuilder delete()
-    {
+    public static OtherRequestBuilder delete() {
         return new OtherRequestBuilder(METHOD.DELETE);
     }
 
-    public static OtherRequestBuilder patch()
-    {
+    public static OtherRequestBuilder patch() {
         return new OtherRequestBuilder(METHOD.PATCH);
     }
 
-    public void execute(final RequestCall requestCall, Callback callback)
-    {
+    public void execute(final RequestCall requestCall, Callback callback) {
         if (callback == null)
             callback = Callback.CALLBACK_DEFAULT;
         final Callback finalCallback = callback;
         final int id = requestCall.getOkHttpRequest().getId();
 
-        requestCall.getCall().enqueue(new okhttp3.Callback()
-        {
+        requestCall.getCall().enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, final IOException e)
-            {
+            public void onFailure(Call call, final IOException e) {
                 sendFailResultCallback(call, e, finalCallback, id);
             }
 
             @Override
-            public void onResponse(final Call call, final Response response)
-            {
-                try
-                {
-                    if (call.isCanceled())
-                    {
+            public void onResponse(final Call call, final Response response) {
+                try {
+                    if (call.isCanceled()) {
                         sendFailResultCallback(call, new IOException("Canceled!"), finalCallback, id);
                         return;
                     }
 
-                    if (!finalCallback.validateReponse(response, id))
-                    {
+                    if (!finalCallback.validateReponse(response, id)) {
                         sendFailResultCallback(call, new IOException("request failed , reponse's code is : " + response.code()), finalCallback, id);
                         return;
                     }
 
                     Object o = finalCallback.parseNetworkResponse(response, id);
                     sendSuccessResultCallback(o, finalCallback, id);
-                } catch (Exception e)
-                {
+                } catch (Exception e) {
                     sendFailResultCallback(call, e, finalCallback, id);
-                } finally
-                {
+                } finally {
                     if (response.body() != null)
                         response.body().close();
                 }
@@ -156,55 +131,37 @@ public class OkHttpUtils
     }
 
 
-    public void sendFailResultCallback(final Call call, final Exception e, final Callback callback, final int id)
-    {
+    public void sendFailResultCallback(final Call call, final Exception e, final Callback callback, final int id) {
         if (callback == null) return;
 
-        mPlatform.execute(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                callback.onError(call, e, id);
-                callback.onAfter(id);
-            }
+        mExecutorPool.execute(() -> {
+            callback.onError(call, e, id);
+            callback.onAfter(id);
         });
     }
 
-    public void sendSuccessResultCallback(final Object object, final Callback callback, final int id)
-    {
+    public void sendSuccessResultCallback(final Object object, final Callback callback, final int id) {
         if (callback == null) return;
-        mPlatform.execute(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                callback.onResponse(object, id);
-                callback.onAfter(id);
-            }
+        mExecutorPool.execute(() -> {
+            callback.onResponse(object, id);
+            callback.onAfter(id);
         });
     }
 
-    public void cancelTag(Object tag)
-    {
-        for (Call call : mOkHttpClient.dispatcher().queuedCalls())
-        {
-            if (tag.equals(call.request().tag()))
-            {
+    public void cancelTag(Object tag) {
+        for (Call call : mOkHttpClient.dispatcher().queuedCalls()) {
+            if (tag.equals(call.request().tag())) {
                 call.cancel();
             }
         }
-        for (Call call : mOkHttpClient.dispatcher().runningCalls())
-        {
-            if (tag.equals(call.request().tag()))
-            {
+        for (Call call : mOkHttpClient.dispatcher().runningCalls()) {
+            if (tag.equals(call.request().tag())) {
                 call.cancel();
             }
         }
     }
 
-    public static class METHOD
-    {
+    public static class METHOD {
         public static final String HEAD = "HEAD";
         public static final String DELETE = "DELETE";
         public static final String PUT = "PUT";
