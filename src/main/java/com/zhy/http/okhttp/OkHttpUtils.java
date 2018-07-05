@@ -8,7 +8,6 @@ import com.zhy.http.okhttp.builder.PostFormBuilder;
 import com.zhy.http.okhttp.builder.PostStringBuilder;
 import com.zhy.http.okhttp.callback.Callback;
 import com.zhy.http.okhttp.request.RequestCall;
-import com.zhy.http.okhttp.utils.Platform;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
@@ -25,7 +24,6 @@ public class OkHttpUtils
     public static final long DEFAULT_MILLISECONDS = 10_000L;
     private volatile static OkHttpUtils mInstance;
     private OkHttpClient mOkHttpClient;
-    private Platform mPlatform;
 
     public OkHttpUtils(OkHttpClient okHttpClient)
     {
@@ -36,8 +34,6 @@ public class OkHttpUtils
         {
             mOkHttpClient = okHttpClient;
         }
-
-        mPlatform = Platform.get();
     }
 
 

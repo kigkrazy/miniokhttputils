@@ -1,6 +1,5 @@
 package com.zhy.http.okhttp.request;
 
-import android.text.TextUtils;
 
 import com.zhy.http.okhttp.OkHttpUtils;
 import com.zhy.http.okhttp.utils.Exceptions;
@@ -11,6 +10,7 @@ import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.internal.http.HttpMethod;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Created by zhy on 16/2/23.
@@ -35,12 +35,12 @@ public class OtherRequest extends OkHttpRequest
     @Override
     protected RequestBody buildRequestBody()
     {
-        if (requestBody == null && TextUtils.isEmpty(content) && HttpMethod.requiresRequestBody(method))
+        if (requestBody == null && StringUtils.isEmpty(content) && HttpMethod.requiresRequestBody(method))
         {
             Exceptions.illegalArgument("requestBody and content can not be null in method:" + method);
         }
 
-        if (requestBody == null && !TextUtils.isEmpty(content))
+        if (requestBody == null && !StringUtils.isEmpty(content))
         {
             requestBody = RequestBody.create(MEDIA_TYPE_PLAIN, content);
         }

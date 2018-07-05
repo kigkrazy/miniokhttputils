@@ -26,8 +26,8 @@ public class GetBuilder extends OkHttpRequestBuilder<GetBuilder> implements HasP
         if (url == null || params == null || params.isEmpty()) {
             return url;
         }
-
-
+        //todo url 解析
+        return null;
 //        Uri.Builder builder = Uri.parse(url).buildUpon();
 //        Set<String> keys = params.keySet();
 //        Iterator<String> iterator = keys.iterator();
