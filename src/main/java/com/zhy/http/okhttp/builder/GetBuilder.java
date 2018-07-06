@@ -3,9 +3,10 @@ package com.zhy.http.okhttp.builder;
 
 import com.zhy.http.okhttp.request.GetRequest;
 import com.zhy.http.okhttp.request.RequestCall;
+import com.zhy.http.okhttp.utils.Urltils;
 
 import java.net.URI;
-import java.net.URL;
+import java.net.URISyntaxException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -16,26 +17,30 @@ public class GetBuilder extends OkHttpRequestBuilder<GetBuilder> implements HasP
     @Override
     public RequestCall build() {
         if (params != null) {
-            url = appendParams(url, params);
+            try {
+                url = appendParams(url, params);
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
         }
 
         return new GetRequest(url, tag, params, headers, id).build();
     }
 
-    protected String appendParams(String url, Map<String, String> params) {
+    protected String appendParams(String url, Map<String, String> params) throws URISyntaxException {
         if (url == null || params == null || params.isEmpty()) {
             return url;
         }
-        //todo url 解析
-        return null;
-//        Uri.Builder builder = Uri.parse(url).buildUpon();
-//        Set<String> keys = params.keySet();
-//        Iterator<String> iterator = keys.iterator();
-//        while (iterator.hasNext()) {
-//            String key = iterator.next();
-//            builder.appendQueryParameter(key, params.get(key));
-//        }
-//        return builder.build().toString();
+        String realUrl = url;
+        String paramsForm = Urltils.map2Form(params, true);
+        //todo url解析
+        URI uri = new URI(url);
+        if (uri.getQuery() != null) {
+            realUrl = realUrl + "&" + paramsForm;
+        } else {
+            realUrl = realUrl + "?" + paramsForm;
+        }
+        return realUrl;
     }
 
 
